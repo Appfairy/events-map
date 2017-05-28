@@ -1,7 +1,7 @@
 {
   "name": "events-map",
   "description": "An events map which stores registered events in a convenient way.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "dist/events_map.min.js",
   "repository": {
     "type": "git",
