@@ -219,9 +219,13 @@ var EventsMap = function () {
       var _this = this;
 
       var fixedEventHandler = function fixedEventHandler() {
+        for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+          args[_key] = arguments[_key];
+        }
+
         _this.off(eventTarget, eventName, fixedEventHandler, useCapture);
 
-        return eventTarget.apply(undefined, arguments);
+        return eventHandler.apply(_this._context, args);
       };
 
       this.on(eventTarget, eventName, fixedEventHandler, useCapture);

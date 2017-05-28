@@ -59,7 +59,7 @@ class EventsMap {
     const fixedEventHandler = (...args) => {
       this.off(eventTarget, eventName, fixedEventHandler, useCapture);
 
-      return eventTarget(...args);
+      return eventHandler.apply(this._context, args);
     };
 
     this.on(eventTarget, eventName, fixedEventHandler, useCapture);
