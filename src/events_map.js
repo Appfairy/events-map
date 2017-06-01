@@ -56,13 +56,55 @@ class EventsMap {
   }
 
   once(eventTarget, eventName, eventHandler, useCapture) {
-    const fixedEventHandler = (...args) => {
-      this.off(eventTarget, eventName, fixedEventHandler, useCapture);
+    if (!eventTarget) {
+      throw TypeError('An event target must be provided');
+    }
+
+    if (!(eventTarget instanceof EventTarget)) {
+      throw TypeError('The first argument must be an event target');
+    }
+
+    if (!eventName) {
+      throw TypeError('An event name must be provided');
+    }
+
+    if (typeof eventName != 'string') {
+      throw TypeError('The second argument must be a string');
+    }
+
+    if (!eventHandler) {
+      throw TypeError('An event handler must be provided');
+    }
+
+    if (typeof eventHandler != 'function') {
+      throw TypeError('The third argument must be a function');
+    }
+
+    useCapture = !!useCapture;
+    const eventsMap = useCapture ? this._captureEventsMap : this._bubbleEventsMap;
+    let handlersMap = eventsMap.get(eventTarget);
+
+    if (!handlersMap) {
+      handlersMap = new Map();
+      eventsMap.set(eventTarget, handlersMap);
+    }
+
+    let boundHandlersMap = handlersMap.get(eventName);
+
+    if (!boundHandlersMap) {
+      boundHandlersMap = new Map();
+      handlersMap.set(eventName, boundHandlersMap);
+    }
+
+    const boundEventHandler = (...args) => {
+      this.off(eventTarget, eventName, eventHandler, useCapture);
 
       return eventHandler.apply(this._context, args);
     };
 
-    this.on(eventTarget, eventName, fixedEventHandler, useCapture);
+    boundHandlersMap.set(eventHandler, boundEventHandler);
+
+    eventTarget.addEventListener(eventName, boundEventHandler, useCapture);
   }
 
   off(eventTarget, eventName, eventHandler, useCapture) {

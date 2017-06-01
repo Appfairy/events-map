@@ -218,17 +218,59 @@ var EventsMap = function () {
     value: function once(eventTarget, eventName, eventHandler, useCapture) {
       var _this = this;
 
-      var fixedEventHandler = function fixedEventHandler() {
+      if (!eventTarget) {
+        throw TypeError('An event target must be provided');
+      }
+
+      if (!(eventTarget instanceof EventTarget)) {
+        throw TypeError('The first argument must be an event target');
+      }
+
+      if (!eventName) {
+        throw TypeError('An event name must be provided');
+      }
+
+      if (typeof eventName != 'string') {
+        throw TypeError('The second argument must be a string');
+      }
+
+      if (!eventHandler) {
+        throw TypeError('An event handler must be provided');
+      }
+
+      if (typeof eventHandler != 'function') {
+        throw TypeError('The third argument must be a function');
+      }
+
+      useCapture = !!useCapture;
+      var eventsMap = useCapture ? this._captureEventsMap : this._bubbleEventsMap;
+      var handlersMap = eventsMap.get(eventTarget);
+
+      if (!handlersMap) {
+        handlersMap = new Map();
+        eventsMap.set(eventTarget, handlersMap);
+      }
+
+      var boundHandlersMap = handlersMap.get(eventName);
+
+      if (!boundHandlersMap) {
+        boundHandlersMap = new Map();
+        handlersMap.set(eventName, boundHandlersMap);
+      }
+
+      var boundEventHandler = function boundEventHandler() {
         for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
           args[_key] = arguments[_key];
         }
 
-        _this.off(eventTarget, eventName, fixedEventHandler, useCapture);
+        _this.off(eventTarget, eventName, eventHandler, useCapture);
 
         return eventHandler.apply(_this._context, args);
       };
 
-      this.on(eventTarget, eventName, fixedEventHandler, useCapture);
+      boundHandlersMap.set(eventHandler, boundEventHandler);
+
+      eventTarget.addEventListener(eventName, boundEventHandler, useCapture);
     }
   }, {
     key: 'off',
