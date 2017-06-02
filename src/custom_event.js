@@ -17,16 +17,16 @@ function CustomEvent(eventName, eventParams = {}) {
     detail: {}
   }, eventParams);
 
-  const event = document.createEvent('CustomEvent');
+  const self = document.createEvent('CustomEvent');
 
-  event.initCustomEvent(
+  self.initCustomEvent(
     eventName,
     eventParams.bubbles,
     eventParams.cancelable,
     eventParams.detail
   );
 
-  return event;
+  return self;
 }
 
 CustomEvent.prototype = Object.create(window.Event.prototype);

@@ -1,4 +1,5 @@
 import CustomEvent from './custom_event';
+import EventTarget from './event_target';
 
 class EventsMap {
   constructor(context = window) {
@@ -12,7 +13,7 @@ class EventsMap {
       throw TypeError('An event target must be provided');
     }
 
-    if (!(eventTarget instanceof EventTarget)) {
+    if (!(eventTarget instanceof window.EventTarget)) {
       throw TypeError('The first argument must be an event target');
     }
 
@@ -60,7 +61,7 @@ class EventsMap {
       throw TypeError('An event target must be provided');
     }
 
-    if (!(eventTarget instanceof EventTarget)) {
+    if (!(eventTarget instanceof window.EventTarget)) {
       throw TypeError('The first argument must be an event target');
     }
 
@@ -108,7 +109,7 @@ class EventsMap {
   }
 
   off(eventTarget, eventName, eventHandler, useCapture) {
-    let eventTargetExists = eventTarget instanceof EventTarget;
+    let eventTargetExists = eventTarget instanceof window.EventTarget;
     let eventNameExists = typeof eventName == 'string';
     let eventHandlerExists = typeof eventHandler == 'function';
 
@@ -151,7 +152,7 @@ class EventsMap {
       eventTarget.removeEventListener(eventName, boundEventHandler, useCapture);
     }
     else if (eventTargetExists && eventNameExists) {
-      if (!(eventTarget instanceof EventTarget)) {
+      if (!(eventTarget instanceof window.EventTarget)) {
         throw TypeError('The first argument must be an event target');
       }
 
@@ -190,7 +191,7 @@ class EventsMap {
       });
     }
     else if (eventTargetExists) {
-      if (!(eventTarget instanceof EventTarget)) {
+      if (!(eventTarget instanceof window.EventTarget)) {
         throw TypeError('The first argument must be an event target');
       }
 
@@ -238,26 +239,8 @@ class EventsMap {
     }
   }
 
-  emit(eventTarget, eventName, eventParams) {
-    if (!eventTarget) {
-      throw TypeError('An event target must be provided');
-    }
-
-    if (!(eventTarget instanceof EventTarget)) {
-      throw TypeError('The first argument must be an event target');
-    }
-
-    if (!eventName) {
-      throw TypeError('An event name must be provided');
-    }
-
-    if (typeof eventName != 'string') {
-      throw TypeError('The second argument must be a string');
-    }
-
-    const event = new CustomEvent(eventName, eventParams);
-
-    eventTarget.dispatchEvent(event);
+  emit(...args) {
+    return EventTarget.emit(...args);
   }
 }
 
