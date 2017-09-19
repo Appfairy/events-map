@@ -169,15 +169,17 @@ var _utils = __webpack_require__(4);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+var SuperEventTarget = window.EventTarget;
+
 function EventTarget() {
   this._listeners = {};
   this._pendingEvents = {};
 }
 
-EventTarget.prototype = Object.create(window.EventTarget.prototype);
+EventTarget.prototype = Object.create(SuperEventTarget.prototype);
 EventTarget.prototype.constructor = EventTarget;
 
-EventTarget.prototype.addEventListener = function addEventListener(type, callback) {
+EventTarget.prototype.addEventListener = function (type, callback, options) {
   if (!type) {
     throw TypeError('Type must be provided');
   }
@@ -192,6 +194,12 @@ EventTarget.prototype.addEventListener = function addEventListener(type, callbac
 
   if (typeof callback != 'function') {
     throw TypeError('Callback must be a function');
+  }
+
+  try {
+    SuperEventTarget.prototype.addEventListener.call(this, type, callback, options);
+  } catch (e) {
+    // Not a native event target
   }
 
   if (!(type in this._listeners)) {
@@ -201,7 +209,7 @@ EventTarget.prototype.addEventListener = function addEventListener(type, callbac
   this._listeners[type].push(callback);
 };
 
-EventTarget.prototype.removeEventListener = function removeEventListener(type, callback) {
+EventTarget.prototype.removeEventListener = function (type, callback, options) {
   if (!type) {
     throw TypeError('Type must be provided');
   }
@@ -216,6 +224,12 @@ EventTarget.prototype.removeEventListener = function removeEventListener(type, c
 
   if (typeof callback != 'function') {
     throw TypeError('Callback must be a function');
+  }
+
+  try {
+    SuperEventTarget.prototype.removeEventListener.call(this, type, callback, options);
+  } catch (e) {
+    // Not a native event target
   }
 
   if (!(type in this._listeners)) {
@@ -232,7 +246,7 @@ EventTarget.prototype.removeEventListener = function removeEventListener(type, c
   }
 };
 
-EventTarget.prototype.dispatchEvent = function dispatchEvent(event) {
+EventTarget.prototype.dispatchEvent = function (event) {
   var _this = this;
 
   if (!event) {
@@ -263,7 +277,7 @@ EventTarget.prototype.dispatchEvent = function dispatchEvent(event) {
   return !event.defaultPrevented;
 };
 
-EventTarget.prototype.silence = function silence(fn) {
+EventTarget.prototype.silence = function (fn) {
   if (this._silenced) return;
 
   this._silenced = true;
@@ -281,7 +295,7 @@ EventTarget.prototype.silence = function silence(fn) {
   return result;
 };
 
-EventTarget.prototype.queueEvent = function queueEvent(eventName, onQueue, onDequeue) {
+EventTarget.prototype.queueEvent = function (eventName, onQueue, onDequeue) {
   var _this2 = this;
 
   if (this._pendingEvents[eventName] || this._silenced) return;
@@ -303,7 +317,7 @@ EventTarget.prototype.queueEvent = function queueEvent(eventName, onQueue, onDeq
   this._pendingEvents[eventName] = immediate;
 };
 
-EventTarget.prototype.clearEvent = function clearEvent(eventName) {
+EventTarget.prototype.clearEvent = function (eventName) {
   var immediate = this._pendingEvents[eventName];
 
   if (!immediate) return;

@@ -1,15 +1,17 @@
 import CustomEvent from './custom_event';
 import { clearImmediate, setImmediate } from './utils';
 
+const SuperEventTarget = window.EventTarget;
+
 function EventTarget() {
   this._listeners = {};
   this._pendingEvents = {};
 }
 
-EventTarget.prototype = Object.create(window.EventTarget.prototype);
+EventTarget.prototype = Object.create(SuperEventTarget.prototype);
 EventTarget.prototype.constructor = EventTarget;
 
-EventTarget.prototype.addEventListener = function (type, callback) {
+EventTarget.prototype.addEventListener = function (type, callback, options) {
   if (!type) {
     throw TypeError('Type must be provided');
   }
@@ -24,6 +26,13 @@ EventTarget.prototype.addEventListener = function (type, callback) {
 
   if (typeof callback != 'function') {
     throw TypeError('Callback must be a function');
+  }
+
+  try {
+    SuperEventTarget.prototype.addEventListener.call(this, type, callback, options);
+  }
+  catch (e) {
+    // Not a native event target
   }
 
   if (!(type in this._listeners)) {
@@ -33,7 +42,7 @@ EventTarget.prototype.addEventListener = function (type, callback) {
   this._listeners[type].push(callback);
 }
 
-EventTarget.prototype.removeEventListener = function (type, callback) {
+EventTarget.prototype.removeEventListener = function (type, callback, options) {
   if (!type) {
     throw TypeError('Type must be provided');
   }
@@ -48,6 +57,13 @@ EventTarget.prototype.removeEventListener = function (type, callback) {
 
   if (typeof callback != 'function') {
     throw TypeError('Callback must be a function');
+  }
+
+  try {
+    SuperEventTarget.prototype.removeEventListener.call(this, type, callback, options);
+  }
+  catch (e) {
+    // Not a native event target
   }
 
   if (!(type in this._listeners)) {
