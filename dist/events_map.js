@@ -170,14 +170,8 @@ var _utils = __webpack_require__(4);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function EventTarget() {
-  var self = {
-    _listeners: {},
-    _pendingEvents: {}
-  };
-
-  Object.setPrototypeOf(self, this.constructor.prototype);
-
-  return self;
+  this._listeners = {};
+  this._pendingEvents = {};
 }
 
 EventTarget.prototype = Object.create(window.EventTarget.prototype);

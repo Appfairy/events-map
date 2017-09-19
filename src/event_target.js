@@ -2,20 +2,14 @@ import CustomEvent from './custom_event';
 import { clearImmediate, setImmediate } from './utils';
 
 function EventTarget() {
-  const self = {
-    _listeners: {},
-    _pendingEvents: {}
-  };
-
-  Object.setPrototypeOf(self, this.constructor.prototype);
-
-  return self;
+  this._listeners = {};
+  this._pendingEvents = {};
 }
 
 EventTarget.prototype = Object.create(window.EventTarget.prototype);
 EventTarget.prototype.constructor = EventTarget;
 
-EventTarget.prototype.addEventListener = function addEventListener(type, callback) {
+EventTarget.prototype.addEventListener = function (type, callback) {
   if (!type) {
     throw TypeError('Type must be provided');
   }
@@ -39,7 +33,7 @@ EventTarget.prototype.addEventListener = function addEventListener(type, callbac
   this._listeners[type].push(callback);
 }
 
-EventTarget.prototype.removeEventListener = function removeEventListener(type, callback) {
+EventTarget.prototype.removeEventListener = function (type, callback) {
   if (!type) {
     throw TypeError('Type must be provided');
   }
@@ -70,7 +64,7 @@ EventTarget.prototype.removeEventListener = function removeEventListener(type, c
   }
 }
 
-EventTarget.prototype.dispatchEvent = function dispatchEvent(event) {
+EventTarget.prototype.dispatchEvent = function (event) {
   if (!event) {
     throw TypeError('Event must be provided');
   }
@@ -97,7 +91,7 @@ EventTarget.prototype.dispatchEvent = function dispatchEvent(event) {
   return !event.defaultPrevented;
 }
 
-EventTarget.prototype.silence = function silence(fn) {
+EventTarget.prototype.silence = function (fn) {
   if (this._silenced) return;
 
   this._silenced = true;
@@ -116,7 +110,7 @@ EventTarget.prototype.silence = function silence(fn) {
   return result;
 };
 
-EventTarget.prototype.queueEvent = function queueEvent(eventName, onQueue, onDequeue) {
+EventTarget.prototype.queueEvent = function (eventName, onQueue, onDequeue) {
   if (this._pendingEvents[eventName] || this._silenced) return;
 
   onQueue = onQueue || Function();
@@ -136,7 +130,7 @@ EventTarget.prototype.queueEvent = function queueEvent(eventName, onQueue, onDeq
   this._pendingEvents[eventName] = immediate;
 };
 
-EventTarget.prototype.clearEvent = function clearEvent(eventName) {
+EventTarget.prototype.clearEvent = function (eventName) {
   const immediate = this._pendingEvents[eventName];
 
   if (!immediate) return;
