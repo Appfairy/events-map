@@ -64,7 +64,7 @@ module.exports =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 4);
+/******/ 	return __webpack_require__(__webpack_require__.s = 5);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -121,15 +121,58 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _events_map = __webpack_require__(3);
+
+Object.defineProperty(exports, 'default', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_events_map).default;
+  }
+});
+
+var _custom_event = __webpack_require__(0);
+
+Object.defineProperty(exports, 'CustomEvent', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_custom_event).default;
+  }
+});
+
+var _event_target = __webpack_require__(2);
+
+Object.defineProperty(exports, 'EventTarget', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_event_target).default;
+  }
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
 var _custom_event = __webpack_require__(0);
 
 var _custom_event2 = _interopRequireDefault(_custom_event);
+
+var _utils = __webpack_require__(4);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function EventTarget() {
   var self = {
-    _listeners: {}
+    _listeners: {},
+    _pendingEvents: {}
   };
 
   Object.setPrototypeOf(self, this.constructor.prototype);
@@ -139,28 +182,6 @@ function EventTarget() {
 
 EventTarget.prototype = Object.create(window.EventTarget.prototype);
 EventTarget.prototype.constructor = EventTarget;
-
-EventTarget.emit = function emit(eventTarget, eventName, eventParams) {
-  if (!eventTarget) {
-    throw TypeError('An event target must be provided');
-  }
-
-  if (!(eventTarget instanceof window.EventTarget)) {
-    throw TypeError('The first argument must be an event target');
-  }
-
-  if (!eventName) {
-    throw TypeError('An event name must be provided');
-  }
-
-  if (typeof eventName != 'string') {
-    throw TypeError('The second argument must be a string');
-  }
-
-  var event = new _custom_event2.default(eventName, eventParams);
-
-  eventTarget.dispatchEvent(event);
-};
 
 EventTarget.prototype.addEventListener = function addEventListener(type, callback) {
   if (!type) {
@@ -248,47 +269,57 @@ EventTarget.prototype.dispatchEvent = function dispatchEvent(event) {
   return !event.defaultPrevented;
 };
 
+EventTarget.prototype.silence = function silence(fn) {
+  if (this._silenced) return;
+
+  this._silenced = true;
+  var dispatchEvent = this.dispatchEvent;
+  var result = void 0;
+
+  try {
+    this.dispatchEvent = Function();
+    result = fn.call(this);
+  } finally {
+    this._silenced = false;
+    this.dispatchEvent = dispatchEvent;
+  }
+
+  return result;
+};
+
+EventTarget.prototype.queueEvent = function queueEvent(eventName, onQueue, onDequeue) {
+  var _this2 = this;
+
+  if (this._pendingEvents[eventName] || this._silenced) return;
+
+  onQueue = onQueue || Function();
+  onDequeue = onDequeue || Function();
+  var detail = {};
+
+  onQueue(detail);
+
+  var immediate = (0, _utils.setImmediate)(function () {
+    delete _this2._pendingEvents[eventName];
+
+    onDequeue(detail);
+
+    _this2.dispatchEvent(new _custom_event2.default(eventName, { detail: detail }));
+  });
+
+  this._pendingEvents[eventName] = immediate;
+};
+
+EventTarget.prototype.clearEvent = function clearEvent(eventName) {
+  var immediate = this._pendingEvents[eventName];
+
+  if (!immediate) return;
+
+  (0, _utils.clearImmediate)(immediate);
+
+  delete this._pendingEvents[eventName];
+};
+
 exports.default = EventTarget;
-
-/***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _events_map = __webpack_require__(3);
-
-Object.defineProperty(exports, 'default', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_events_map).default;
-  }
-});
-
-var _custom_event = __webpack_require__(0);
-
-Object.defineProperty(exports, 'CustomEvent', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_custom_event).default;
-  }
-});
-
-var _event_target = __webpack_require__(1);
-
-Object.defineProperty(exports, 'EventTarget', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_event_target).default;
-  }
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /***/ }),
 /* 3 */
@@ -306,10 +337,6 @@ var _createClass = function () { function defineProperties(target, props) { for 
 var _custom_event = __webpack_require__(0);
 
 var _custom_event2 = _interopRequireDefault(_custom_event);
-
-var _event_target = __webpack_require__(1);
-
-var _event_target2 = _interopRequireDefault(_event_target);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -329,11 +356,18 @@ var EventsMap = function () {
   _createClass(EventsMap, [{
     key: 'on',
     value: function on(eventTarget, eventName, eventHandler, useCapture) {
+      if (typeof eventTarget == 'string') {
+        useCapture = eventHandler;
+        eventHandler = eventName;
+        eventName = eventTarget;
+        eventTarget = this._context;
+      }
+
       if (!eventTarget) {
         throw TypeError('An event target must be provided');
       }
 
-      if (!(eventTarget instanceof window.EventTarget)) {
+      if (!(eventTarget instanceof EventTarget)) {
         throw TypeError('The first argument must be an event target');
       }
 
@@ -380,11 +414,18 @@ var EventsMap = function () {
     value: function once(eventTarget, eventName, eventHandler, useCapture) {
       var _this = this;
 
+      if (typeof eventTarget == 'string') {
+        useCapture = eventHandler;
+        eventHandler = eventName;
+        eventName = eventTarget;
+        eventTarget = this._context;
+      }
+
       if (!eventTarget) {
         throw TypeError('An event target must be provided');
       }
 
-      if (!(eventTarget instanceof window.EventTarget)) {
+      if (!(eventTarget instanceof EventTarget)) {
         throw TypeError('The first argument must be an event target');
       }
 
@@ -437,7 +478,14 @@ var EventsMap = function () {
   }, {
     key: 'off',
     value: function off(eventTarget, eventName, eventHandler, useCapture) {
-      var eventTargetExists = eventTarget instanceof window.EventTarget;
+      if (typeof eventTarget == 'string') {
+        useCapture = eventHandler;
+        eventHandler = eventName;
+        eventName = eventTarget;
+        eventTarget = this._context;
+      }
+
+      var eventTargetExists = eventTarget instanceof EventTarget;
       var eventNameExists = typeof eventName == 'string';
       var eventHandlerExists = typeof eventHandler == 'function';
 
@@ -479,7 +527,7 @@ var EventsMap = function () {
 
         eventTarget.removeEventListener(eventName, boundEventHandler, useCapture);
       } else if (eventTargetExists && eventNameExists) {
-        if (!(eventTarget instanceof window.EventTarget)) {
+        if (!(eventTarget instanceof EventTarget)) {
           throw TypeError('The first argument must be an event target');
         }
 
@@ -517,7 +565,7 @@ var EventsMap = function () {
           eventTarget.removeEventListener(eventName, boundEventHandler, useCapture);
         });
       } else if (eventTargetExists) {
-        if (!(eventTarget instanceof window.EventTarget)) {
+        if (!(eventTarget instanceof EventTarget)) {
           throw TypeError('The first argument must be an event target');
         }
 
@@ -565,8 +613,32 @@ var EventsMap = function () {
     }
   }, {
     key: 'emit',
-    value: function emit() {
-      return _event_target2.default.emit.apply(_event_target2.default, arguments);
+    value: function emit(eventTarget, eventName, eventParams) {
+      if (typeof eventTarget == 'string') {
+        eventParams = eventName;
+        eventName = eventTarget;
+        eventTarget = this._context;
+      }
+
+      if (!eventTarget) {
+        throw TypeError('An event target must be provided');
+      }
+
+      if (!(eventTarget instanceof EventTarget)) {
+        throw TypeError('The first argument must be an event target');
+      }
+
+      if (!eventName) {
+        throw TypeError('An event name must be provided');
+      }
+
+      if (typeof eventName != 'string') {
+        throw TypeError('The second argument must be a string');
+      }
+
+      var event = new _custom_event2.default(eventName, eventParams);
+
+      eventTarget.dispatchEvent(event);
     }
   }]);
 
@@ -579,7 +651,27 @@ exports.default = EventsMap;
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(2);
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.setImmediate = setImmediate;
+exports.clearImmediate = clearImmediate;
+function setImmediate(fn) {
+  return (window.setImmediate || setTimeout)(fn);
+}
+
+function clearImmediate(id) {
+  return (window.clearImmediate || clearTimeout)(id);
+}
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__(1);
 
 
 /***/ })

@@ -1,8 +1,10 @@
 import CustomEvent from './custom_event';
+import { clearImmediate, setImmediate } from './utils';
 
 function EventTarget() {
   const self = {
-    _listeners: {}
+    _listeners: {},
+    _pendingEvents: {}
   };
 
   Object.setPrototypeOf(self, this.constructor.prototype);
@@ -12,28 +14,6 @@ function EventTarget() {
 
 EventTarget.prototype = Object.create(window.EventTarget.prototype);
 EventTarget.prototype.constructor = EventTarget;
-
-EventTarget.emit = function emit(eventTarget, eventName, eventParams) {
-  if (!eventTarget) {
-    throw TypeError('An event target must be provided');
-  }
-
-  if (!(eventTarget instanceof window.EventTarget)) {
-    throw TypeError('The first argument must be an event target');
-  }
-
-  if (!eventName) {
-    throw TypeError('An event name must be provided');
-  }
-
-  if (typeof eventName != 'string') {
-    throw TypeError('The second argument must be a string');
-  }
-
-  const event = new CustomEvent(eventName, eventParams);
-
-  eventTarget.dispatchEvent(event);
-};
 
 EventTarget.prototype.addEventListener = function addEventListener(type, callback) {
   if (!type) {
@@ -116,5 +96,54 @@ EventTarget.prototype.dispatchEvent = function dispatchEvent(event) {
 
   return !event.defaultPrevented;
 }
+
+EventTarget.prototype.silence = function silence(fn) {
+  if (this._silenced) return;
+
+  this._silenced = true;
+  const dispatchEvent = this.dispatchEvent;
+  let result;
+
+  try {
+    this.dispatchEvent = Function();
+    result = fn.call(this);
+  }
+  finally {
+    this._silenced = false;
+    this.dispatchEvent = dispatchEvent;
+  }
+
+  return result;
+};
+
+EventTarget.prototype.queueEvent = function queueEvent(eventName, onQueue, onDequeue) {
+  if (this._pendingEvents[eventName] || this._silenced) return;
+
+  onQueue = onQueue || Function();
+  onDequeue = onDequeue || Function();
+  const detail = {};
+
+  onQueue(detail);
+
+  const immediate = setImmediate(() => {
+    delete this._pendingEvents[eventName];
+
+    onDequeue(detail);
+
+    this.dispatchEvent(new CustomEvent(eventName, { detail }));
+  });
+
+  this._pendingEvents[eventName] = immediate;
+};
+
+EventTarget.prototype.clearEvent = function clearEvent(eventName) {
+  const immediate = this._pendingEvents[eventName];
+
+  if (!immediate) return;
+
+  clearImmediate(immediate);
+
+  delete this._pendingEvents[eventName];
+};
 
 export default EventTarget;

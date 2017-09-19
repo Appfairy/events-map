@@ -1,5 +1,4 @@
 import CustomEvent from './custom_event';
-import EventTarget from './event_target';
 
 class EventsMap {
   constructor(context = window) {
@@ -9,11 +8,18 @@ class EventsMap {
   }
 
   on(eventTarget, eventName, eventHandler, useCapture) {
+    if (typeof eventTarget == 'string') {
+      useCapture = eventHandler;
+      eventHandler = eventName;
+      eventName = eventTarget;
+      eventTarget = this._context;
+    }
+
     if (!eventTarget) {
       throw TypeError('An event target must be provided');
     }
 
-    if (!(eventTarget instanceof window.EventTarget)) {
+    if (!(eventTarget instanceof EventTarget)) {
       throw TypeError('The first argument must be an event target');
     }
 
@@ -57,11 +63,18 @@ class EventsMap {
   }
 
   once(eventTarget, eventName, eventHandler, useCapture) {
+    if (typeof eventTarget == 'string') {
+      useCapture = eventHandler;
+      eventHandler = eventName;
+      eventName = eventTarget;
+      eventTarget = this._context;
+    }
+
     if (!eventTarget) {
       throw TypeError('An event target must be provided');
     }
 
-    if (!(eventTarget instanceof window.EventTarget)) {
+    if (!(eventTarget instanceof EventTarget)) {
       throw TypeError('The first argument must be an event target');
     }
 
@@ -109,7 +122,14 @@ class EventsMap {
   }
 
   off(eventTarget, eventName, eventHandler, useCapture) {
-    let eventTargetExists = eventTarget instanceof window.EventTarget;
+    if (typeof eventTarget == 'string') {
+      useCapture = eventHandler;
+      eventHandler = eventName;
+      eventName = eventTarget;
+      eventTarget = this._context;
+    }
+
+    let eventTargetExists = eventTarget instanceof EventTarget;
     let eventNameExists = typeof eventName == 'string';
     let eventHandlerExists = typeof eventHandler == 'function';
 
@@ -152,7 +172,7 @@ class EventsMap {
       eventTarget.removeEventListener(eventName, boundEventHandler, useCapture);
     }
     else if (eventTargetExists && eventNameExists) {
-      if (!(eventTarget instanceof window.EventTarget)) {
+      if (!(eventTarget instanceof EventTarget)) {
         throw TypeError('The first argument must be an event target');
       }
 
@@ -191,7 +211,7 @@ class EventsMap {
       });
     }
     else if (eventTargetExists) {
-      if (!(eventTarget instanceof window.EventTarget)) {
+      if (!(eventTarget instanceof EventTarget)) {
         throw TypeError('The first argument must be an event target');
       }
 
@@ -239,8 +259,32 @@ class EventsMap {
     }
   }
 
-  emit(...args) {
-    return EventTarget.emit(...args);
+  emit(eventTarget, eventName, eventParams) {
+    if (typeof eventTarget == 'string') {
+      eventParams = eventName;
+      eventName = eventTarget;
+      eventTarget = this._context;
+    }
+
+    if (!eventTarget) {
+      throw TypeError('An event target must be provided');
+    }
+
+    if (!(eventTarget instanceof EventTarget)) {
+      throw TypeError('The first argument must be an event target');
+    }
+
+    if (!eventName) {
+      throw TypeError('An event name must be provided');
+    }
+
+    if (typeof eventName != 'string') {
+      throw TypeError('The second argument must be a string');
+    }
+
+    const event = new CustomEvent(eventName, eventParams);
+
+    eventTarget.dispatchEvent(event);
   }
 }
 
