@@ -3,7 +3,6 @@ import { isBrowser } from './consts'
 import {
   global,
   document,
-  setImmediate,
   Symbol
 } from './polyfills'
 
@@ -41,7 +40,8 @@ class EventsMap {
     this[internals] = {
       context,
       rootNode,
-      handlers: new Map()
+      captureHandlers: new Map(),
+      bubbleHandlers: new Map()
     }
   }
 
@@ -60,6 +60,7 @@ class EventsMap {
       throw TypeError('Argument 3 must be a function')
     }
 
+    // Last argument will either represent useCapture or priority
     if (isNumber(priority)) {
       if (priority <= 0) {
         throw TypeError('Priority must be 0 or greater')
@@ -75,7 +76,11 @@ class EventsMap {
       throw TypeError('Argument 4 must be a number or a boolean')
     }
 
-    const { context, handlers, rootNode } = this[internals]
+    const { context, rootNode } = this[internals]
+
+    const handlers = useCapture
+      ? this[internals].captureHandlers
+      : this[internals].bubbleHandlers
 
     let handlersMap = handlers.get(target)
 
@@ -92,6 +97,8 @@ class EventsMap {
     }
 
     const boundHandler = (e) => {
+      // If rootNode wasn't specified or there's not priority to this handler than
+      // execute normally
       if (!rootNode || !isNumber(priority)) {
         return handler.call(context, e)
       }
@@ -105,24 +112,36 @@ class EventsMap {
         handlingQueues = {}
         rootNode[internals] = { handlingQueues }
 
+        // This will be the handler which will execute all the queued event handlers
+        // in series based on their priority
         const executor = () => {
+          // Sorting tasks based on their priority.
+          // A lower number represents a higher priority
           Object.keys(handlingQueues).sort().forEach((queueIndex) => {
             const handlingQueue = handlingQueues[queueIndex]
 
             handlingQueue.forEach((handler) => {
-              handler.call(context, e)
+              // Error will only be printed without interrupting the execution queue
+              try {
+                handler.call(context, e)
+              }
+              catch (error) {
+                console.error(error)
+              }
             })
+
+            // Dispose queue related data
+            delete rootNode[internals]
+
+            rootNode.removeEventListener(e.type, executor)
           })
         }
 
+        // For future use when we would like to re-register the executor handler
         rootNode[internals].executor = executor
 
-        setImmediate(() => {
-          delete rootNode[internals]
-
-          rootNode.removeEventListener(e.type, executor)
-        })
-
+        // Despite adding the executor during run-time it will still be executed as if
+        // it was registered in advance
         rootNode.addEventListener(e.type, executor)
       }
 
@@ -136,15 +155,13 @@ class EventsMap {
       handlingQueue.push(handler)
     }
 
-    boundHandler[internals] = { useCapture }
-
     boundHandlers.set(handler, boundHandler)
 
     const on = target.addEventListener || target.on
 
     on.call(target, name, boundHandler, useCapture)
 
-    // Push the executor to the top of the execution queue
+    // Push the executor to the top of the execution queue so it will always come last
     if (target === rootNode && rootNode[internals]) {
       rootNode.removeEventListener(name, rootNode[internals].executor)
       rootNode.addEventListener(name, rootNode[internals].executor)
@@ -168,14 +185,24 @@ class EventsMap {
 
     this.on(target, name, oneTimeHandler, priority)
 
-    const { handlers } = this[internals]
+    const useCapture = isBoolean(priority) && priority
 
+    const handlers = useCapture
+      ? this[internals].captureHandlers
+      : this[internals].bubbleHandlers
+
+    // Resetting the bound handler to reference the oneTimeHandler so
+    // it can be unregistered by the user afterwards
     handlers.get(target).get(name).set(handler, oneTimeHandler)
 
     return this
   }
 
-  off(target, name, handler) {
+  off(...args) {
+    // Last boolean argument will always be useCapture
+    const useCapture = isBoolean(args[args.length - 1]) ? args.pop() : false
+    const [target, name, handler] = args
+
     if (target != null && !isEventTarget(target)) {
       throw TypeError('Argument 1 must be an event target')
     }
@@ -188,11 +215,14 @@ class EventsMap {
       throw TypeError('Argument 3 must be a function')
     }
 
-    const { handlers } = this[internals]
+    const handlers = useCapture
+      ? this[internals].captureHandlers
+      : this[internals].bubbleHandlers
 
+    // Call for all targets
     if (!target) {
       Array.from(handlers.keys()).forEach((target) => {
-        this.off(target, name, handler)
+        this.off(target, name, handler, useCapture)
       })
 
       return this
@@ -200,9 +230,10 @@ class EventsMap {
 
     const handlersMap = handlers.get(target)
 
+    // Call for all names
     if (!name) {
       Array.from(handlersMap.keys()).forEach((name) => {
-        this.off(target, name, handler)
+        this.off(target, name, handler, useCapture)
       })
 
       return this
@@ -210,31 +241,43 @@ class EventsMap {
 
     const boundHandlers = handlersMap.get(name)
 
+    // Call for all handlers
     if (!handler) {
       Array.from(boundHandlers.keys()).forEach((handler) => {
-        this.off(target, name, handler)
+        this.off(target, name, handler, useCapture)
       })
 
       return this
     }
 
     const boundHandler = boundHandlers.get(handler)
-    const useCapture = boundHandler[internals].useCapture
     const off = target.off || target.removeEventListener
 
     off.call(target, name, boundHandler, useCapture)
 
+    // Run disposals
+    boundHandlers.delete(handler)
+
+    if (!boundHandlers.size) {
+      handlersMap.delete(name)
+    }
+
+    if (!handlersMap.size) {
+      handlers.delete(target)
+    }
+
     return this
   }
 
-  emit(target, name, args) {
+  trigger(target, name, args) {
     if (!isEventTarget(target)) {
       throw TypeError('Argument 1 must be an event target')
     }
 
-    const emit = target.emit || target.trigger
+    const trigger = target.emit || target.trigger
 
-    if (emit) {
+    // Probably Node.JS's EventEmitter or a third party library
+    if (trigger) {
       if (!isString(name)) {
         throw TypeError('Argument 2 must be a string')
       }
@@ -243,9 +286,11 @@ class EventsMap {
         throw TypeError('Argument 3 must be an object')
       }
 
-      emit.call(target, name, args)
+      trigger.call(target, name, args)
     }
+    // Probably the browser's EventTarget
     else if (isBrowser) {
+      // Wrap args with CustomEvent if plain object was provided
       if (isString(name) && !(args instanceof Event)) {
         args = new CustomEvent(name, {
           bubbles: true,

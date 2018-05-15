@@ -159,7 +159,8 @@ var EventsMap = function () {
     this[internals] = {
       context: context,
       rootNode: rootNode,
-      handlers: new Map()
+      captureHandlers: new Map(),
+      bubbleHandlers: new Map()
     };
   }
 
@@ -197,9 +198,10 @@ var EventsMap = function () {
 
       var _internals = this[internals],
           context = _internals.context,
-          handlers = _internals.handlers,
           rootNode = _internals.rootNode;
 
+
+      var handlers = useCapture ? this[internals].captureHandlers : this[internals].bubbleHandlers;
 
       var handlersMap = handlers.get(target);
 
@@ -259,8 +261,6 @@ var EventsMap = function () {
         handlingQueue.push(handler);
       };
 
-      boundHandler[internals] = { useCapture: useCapture };
-
       boundHandlers.set(handler, boundHandler);
 
       var on = target.addEventListener || target.on;
@@ -301,8 +301,18 @@ var EventsMap = function () {
     }
   }, {
     key: 'off',
-    value: function off(target, name, handler) {
+    value: function off() {
       var _this = this;
+
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      var useCapture = (0, _utils.isBoolean)(args[args.length - 1]) ? args.pop() : false;
+      var target = args[0],
+          name = args[1],
+          handler = args[2];
+
 
       if (target != null && !(0, _utils.isEventTarget)(target)) {
         throw TypeError('Argument 1 must be an event target');
@@ -313,16 +323,14 @@ var EventsMap = function () {
       }
 
       if (handler != null && !(0, _utils.isFunction)(handler)) {
-        console.log(handler);
         throw TypeError('Argument 3 must be a function');
       }
 
-      var handlers = this[internals].handlers;
-
+      var handlers = useCapture ? this[internals].captureHandlers : this[internals].bubbleHandlers;
 
       if (!target) {
         Array.from(handlers.keys()).forEach(function (target) {
-          _this.off(target, name, handler);
+          _this.off(target, name, handler, useCapture);
         });
 
         return this;
@@ -332,7 +340,7 @@ var EventsMap = function () {
 
       if (!name) {
         Array.from(handlersMap.keys()).forEach(function (name) {
-          _this.off(target, name, handler);
+          _this.off(target, name, handler, useCapture);
         });
 
         return this;
@@ -342,17 +350,26 @@ var EventsMap = function () {
 
       if (!handler) {
         Array.from(boundHandlers.keys()).forEach(function (handler) {
-          _this.off(target, name, handler);
+          _this.off(target, name, handler, useCapture);
         });
 
         return this;
       }
 
       var boundHandler = boundHandlers.get(handler);
-      var useCapture = boundHandler[internals].useCapture;
       var off = target.off || target.removeEventListener;
 
       off.call(target, name, boundHandler, useCapture);
+
+      boundHandlers.delete(handler);
+
+      if (!boundHandlers.size) {
+        handlersMap.delete(name);
+      }
+
+      if (!handlersMap.size) {
+        handlers.delete(target);
+      }
 
       return this;
     }

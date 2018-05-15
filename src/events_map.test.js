@@ -30,7 +30,7 @@ describe('EventsMap class', () => {
           childCalled = true
         })
 
-        eventsMap.emit(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'test')
       })
 
       test('bubbling', (next) => {
@@ -48,7 +48,7 @@ describe('EventsMap class', () => {
           parentCalled = true
         }, true)
 
-        eventsMap.emit(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'test')
       })
 
       test('prioritizing', (next) => {
@@ -75,7 +75,7 @@ describe('EventsMap class', () => {
           parentCalled = true
         }, 1)
 
-        eventsMap.emit(eventTarget.firstElementChild, 'test')
+        eventsMap.trigger(eventTarget.firstElementChild, 'test')
       })
     })
   })
@@ -93,12 +93,12 @@ describe('EventsMap class', () => {
 
     eventsMap.on(eventTarget, 'next', next)
 
-    eventsMap.emit(eventTarget, 'test')
-    eventsMap.emit(eventTarget, 'test')
-    eventsMap.emit(eventTarget, 'next')
+    eventsMap.trigger(eventTarget, 'test')
+    eventsMap.trigger(eventTarget, 'test')
+    eventsMap.trigger(eventTarget, 'next')
   })
 
-  describe.only('off() method', () => {
+  describe('off() method', () => {
     describe('bubbling', () => {
       test('event target, event name, event handler specification', (next) => {
         let called = false
@@ -114,12 +114,12 @@ describe('EventsMap class', () => {
         eventsMap.on(eventTarget, 'test', eventHandler, false)
         eventsMap.on(eventTarget, 'next', next, false)
 
-        eventsMap.emit(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'test')
 
         eventsMap.off(eventTarget, 'test', eventHandler, false)
 
-        eventsMap.emit(eventTarget, 'test')
-        eventsMap.emit(eventTarget, 'next')
+        eventsMap.trigger(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'next')
       })
 
       test('event target, event name specification', (next) => {
@@ -136,12 +136,12 @@ describe('EventsMap class', () => {
         eventsMap.on(eventTarget, 'test', eventHandler, false)
         eventsMap.on(eventTarget, 'next', next, false)
 
-        eventsMap.emit(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'test')
 
         eventsMap.off(eventTarget, 'test', false)
 
-        eventsMap.emit(eventTarget, 'test')
-        eventsMap.emit(eventTarget, 'next')
+        eventsMap.trigger(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'next')
       })
     })
 
@@ -160,12 +160,12 @@ describe('EventsMap class', () => {
         eventsMap.on(eventTarget, 'test', eventHandler, true)
         eventsMap.on(eventTarget, 'next', next, true)
 
-        eventsMap.emit(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'test')
 
         eventsMap.off(eventTarget, 'test', eventHandler, true)
 
-        eventsMap.emit(eventTarget, 'test')
-        eventsMap.emit(eventTarget, 'next')
+        eventsMap.trigger(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'next')
       })
 
       test('event target, event name specification', (next) => {
@@ -182,12 +182,12 @@ describe('EventsMap class', () => {
         eventsMap.on(eventTarget, 'test', eventHandler, true)
         eventsMap.on(eventTarget, 'next', next, true)
 
-        eventsMap.emit(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'test')
 
         eventsMap.off(eventTarget, 'test', true)
 
-        eventsMap.emit(eventTarget, 'test')
-        eventsMap.emit(eventTarget, 'next')
+        eventsMap.trigger(eventTarget, 'test')
+        eventsMap.trigger(eventTarget, 'next')
       })
     })
   })
